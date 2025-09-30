@@ -432,6 +432,18 @@ function setupBoard($array) {
 	if (!file_exists($board['dir'] . $config['dir']['res']))
 		@mkdir($board['dir'] . $config['dir']['res'], 0777)
 			or error("Couldn't create " . $board['dir'] . $config['dir']['img'] . ". Check permissions.", true);
+
+	// json api
+	if ($config['api']['enabled'] && !$mod) {
+		$api = new Api(
+			$config['show_filename'],
+			$config['hide_email'],
+			$config['country_flags']
+		);
+		$json = json_encode($api->translateBoards(listBoards()));
+		$jsonFilename = 'boards.json';
+		file_write($jsonFilename, $json);
+	}
 }
 
 function openBoard($uri) {
