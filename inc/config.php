@@ -1275,6 +1275,7 @@
 		// Moderator errors
 		'toomanyunban'	=> _('You are only allowed to unban %s users at a time. You tried to unban %u users.'),
 		'invalid'		=> _('Invalid username and/or password.'),
+		'infotoolong'   => _('Username and/or password contains too many characters.'),
 		'insecure'		=> _('Login on insecure connections is disabled.'),
 		'notamod'		=> _('You are not a mod…'),
 		'invalidafter'	=> _('Invalid username and/or password. Your user may have been deleted or changed.'),
