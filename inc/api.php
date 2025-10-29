@@ -209,7 +209,7 @@ class Api {
 		return $apiCatalog;
 	}
 	
-	public function translateBoard(Board $board) {
+	public function translateBoard($board) {
 		$apiBoard = [];
 		
 		foreach ($boards as $board) {
