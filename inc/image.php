@@ -250,7 +250,7 @@ class ImageConvert extends ImageBase {
 			if ($size = @getimagesize($src))
 				return $size;
 		}
-		$size = shell_exec_error(($this->gm ? 'gm ' : '') . 'identify -format "%w %h" ' . escapeshellarg($src . '[0]'));
+		$size = shell_exec_error(($this->gm ? 'gm ' : 'magick ') . 'identify -format "%w %h" ' . escapeshellarg($src . '[0]'));
 		if (preg_match('/^(\d+) (\d+)$/', $size, $m))
 			return array($m[1], $m[2]);
 		return false;
@@ -276,13 +276,13 @@ class ImageConvert extends ImageBase {
 
 		if (!$this->temp) {
 			if ($config['strip_exif']) {
-				if($error = shell_exec_error(($this->gm ? 'gm ' : '') . 'convert ' .
+				if($error = shell_exec_error(($this->gm ? 'gm convert ' : 'magick ') .
 						escapeshellarg($this->src) . ' -auto-orient -strip ' . escapeshellarg($src))) {
 					$this->destroy();
 					error(_('Failed to redraw image!'), null, $error);
 				}
 			} else {
-				if($error = shell_exec_error(($this->gm ? 'gm ' : '') . 'convert ' .
+				if($error = shell_exec_error(($this->gm ? 'gm convert ' : 'magick ') .
 						escapeshellarg($this->src) . ' -auto-orient ' . escapeshellarg($src))) {
 					$this->destroy();
 					error(_('Failed to redraw image!'), null, $error);
@@ -329,7 +329,7 @@ class ImageConvert extends ImageBase {
 			} else {
 				$convert_args = &$config['convert_args'];
 
-				if (($error = shell_exec_error(($this->gm ? 'gm ' : '') . 'convert ' .
+				if (($error = shell_exec_error(($this->gm ? 'gm convert ' : 'magick ') .
 					sprintf($convert_args,
 						$this->width,
 						$this->height,
@@ -348,7 +348,7 @@ class ImageConvert extends ImageBase {
 		} else {
 			$convert_args = &$config['convert_args'];
 
-			if (($error = shell_exec_error(($this->gm ? 'gm ' : '') . 'convert ' .
+			if (($error = shell_exec_error(($this->gm ? 'gm convert ' : 'magick ') .
 				sprintf($convert_args,
 					$this->width,
 					$this->height,
