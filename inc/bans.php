@@ -1,4 +1,6 @@
+
 <?php
+declare(strict_types=1);
 
 use Vichan\Functions\Format;
 use Lifo\IP\CIDR;
@@ -158,8 +160,9 @@ class Bans {
 		return $ban_list;
 	}
 
-	static public function range_to_string($mask) {
-		list($ipstart, $ipend) = $mask;
+
+	static public function range_to_string(array $mask): string {
+		[$ipstart, $ipend] = $mask;
 
 		if (!isset($ipend) || $ipend === false) {
 			// Not a range. Single IP address.
@@ -237,11 +240,11 @@ class Bans {
 			$parts = explode('.', $mask);
 			$ipv4 = '';
 			foreach ($parts as $part) {
-				if ($part == '*') {
+				if ($part === '*') {
 					$ipstart = inet_pton($ipv4 . '0' . str_repeat('.0', 3 - substr_count($ipv4, '.')));
 					$ipend = inet_pton($ipv4 . '255' . str_repeat('.255', 3 - substr_count($ipv4, '.')));
 					break;
-				} elseif(($wc = strpos($part, '*')) !== false) {
+				} elseif (($wc = strpos($part, '*')) !== false) {
 					$ipstart = inet_pton($ipv4 . substr($part, 0, $wc) . '0' . str_repeat('.0', 3 - substr_count($ipv4, '.')));
 					$ipend = inet_pton($ipv4 . substr($part, 0, $wc) . '9' . str_repeat('.255', 3 - substr_count($ipv4, '.')));
 					break;
@@ -249,17 +252,15 @@ class Bans {
 				$ipv4 .= "$part.";
 			}
 		} elseif (preg_match('@^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d+$@', $mask)) {
-			list($ipv4, $bits) = explode('/', $mask);
-			if ($bits > 32)
+			[$ipv4, $bits] = explode('/', $mask, 2);
+			if ((int)$bits > 32)
 				return false;
-
-			list($ipstart, $ipend) = self::calc_cidr($mask);
+			[$ipstart, $ipend] = self::calc_cidr($mask);
 		} elseif (preg_match('@^[:a-z\d]+/\d+$@i', $mask)) {
-			list($ipv6, $bits) = explode('/', $mask);
-			if ($bits > 128)
+			[$ipv6, $bits] = explode('/', $mask, 2);
+			if ((int)$bits > 128)
 				return false;
-
-			list($ipstart, $ipend) = self::calc_cidr($mask);
+			[$ipstart, $ipend] = self::calc_cidr($mask);
 		} else {
 			if (($ipstart = @inet_pton($mask)) === false)
 				return false;
@@ -318,12 +319,12 @@ class Bans {
 				$ban['username'] = '?';
 			}
 			if ($filter_ips || ($board_access !== false && !in_array($ban['board'], $board_access))) {
-				@list($ban['mask'], $subnet) = explode("/", $ban['mask']);
-				$ban['mask'] = preg_split("/[\.:]/", $ban['mask']);
+				[$maskPart, $subnet] = array_pad(explode("/", $ban['mask'], 2), 2, null);
+				$ban['mask'] = preg_split("/[\.:]/", $maskPart);
 				$ban['mask'] = array_slice($ban['mask'], 0, 2);
 				$ban['mask'] = implode(".", $ban['mask']);
 				$ban['mask'] .= ".x.x";
-				if (isset ($subnet)) {
+				if ($subnet !== null) {
 					$ban['mask'] .= "/$subnet";
 				}
 				$ban['masked'] = true;

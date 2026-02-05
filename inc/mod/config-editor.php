@@ -1,4 +1,6 @@
+
 <?php
+declare(strict_types=1);
 
 /*
  *  Copyright (c) 2010-2013 Tinyboard Development Group
@@ -6,7 +8,7 @@
 
 defined('TINYBOARD') or exit;
 
-function permission_to_edit_config_var($varname) {
+function permission_to_edit_config_var($varname): bool {
 	global $config, $mod;
 
 	if (isset($config['mod']['config'][DISABLED])) {
@@ -45,18 +47,19 @@ function permission_to_edit_config_var($varname) {
 	return !$allow_only;
 }
 
-function config_vars() {
+function config_vars(): array {
 	global $config;
 	
 	$config_file = file('inc/config.php', FILE_IGNORE_NEW_LINES);
-	$conf = array();
-	
-	$var = array(
+	$conf = [];
+	$var = [
 		'name' => false,
-		'comment' => array(),
+		'comment' => [],
 		'default' => false,
-		'default_temp' => false
-	);
+		'default_temp' => false,
+		'commented' => false,
+		'permissions' => false,
+	];
 	$temp_comment = false;
 	$line_no = 0;
 	foreach ($config_file as $line) {
@@ -76,7 +79,7 @@ function config_vars() {
 			} else {
 				$var['comment'][] = $matches[1];
 			}
-		} else if ($var['default_temp'] !== false) {
+		} elseif ($var['default_temp'] !== false) {
 			$var['default_temp'] .= "\n" . $line;
 		} elseif (preg_match('!^[\s/]*\$config\[(.+?)\] = (.+?)(;( //.+)?)?$!', $line, $matches)) {
 			if (preg_match('!^\s*//\s*!', $line)) {
@@ -84,16 +87,18 @@ function config_vars() {
 			}
 			$var['name'] = explode('][', $matches[1]);
 			if (count($var['name']) == 1) {
-				$var['name'] = preg_replace('/^\'(.*)\'$/', '$1', end($var['name']));
+				$var['name'] = preg_replace("/^'(.*)'$/", '$1', end($var['name']));
 			} else {
-				foreach ($var['name'] as &$i)
-					$i = preg_replace('/^\'(.*)\'$/', '$1', $i);
+				foreach ($var['name'] as &$i) {
+					$i = preg_replace("/^'(.*)'$/", '$1', $i);
+				}
 			}
 			
-			if (isset($matches[3]))
+			if (isset($matches[3])) {
 				$var['default'] = $matches[2];
-			else
+			} else {
 				$var['default_temp'] = $matches[2];
+			}
 		}
 		
 		if ($var['name'] !== false) {
@@ -114,52 +119,64 @@ function config_vars() {
 					error('Error parsing config.php (line ' . $line_no . ')!', null, $var);
 				} elseif (!isset($temp)) {
 					$var['type'] = 'unknown';
-				} else {
-					$var['type'] = gettype($temp);
-				}
-				
-				if ($var['type'] == 'integer' && $var['name'][0] == 'mod' &&
-					(in_array($var['default'], array('JANITOR', 'MOD', 'ADMIN', 'DISABLED')) || mb_strpos($var['default'], "\$config['mod']") === 0)) {
-					// Permissions variable
-					$var['permissions'] = true;
-				}
-				
-				unset($var['default_temp']);
-				if (!is_array($var['name']) || (end($var['name']) != '' && !in_array(reset($var['name']), array('stylesheets')))) {
-					$already_exists = false;
-					foreach ($conf as $_var) {
-						if ($var['name'] == $_var['name'])
-							$already_exists = true;
-							
+				if ($var['name'] !== false) {
+					if ($var['default_temp']) {
+						$var['default'] = $var['default_temp'];
 					}
-					if (!$already_exists && permission_to_edit_config_var($var['name'])) {
-						foreach ($var['comment'] as &$comment) {
-							$comment = preg_replace_callback(
-								'/((?:https?:\/\/|ftp:\/\/|irc:\/\/)[^\s<>()"]+?(?:\([^\s<>()"]*?\)[^\s<>()"]*?)*)((?:\s|<|>|"|\.||\]|!|\?|,|&#44;|&quot;)*(?:[\s<>()"]|$))/',
-								'markup_url', $comment);
+					if ($var['default'] && $var['default'][0] == '&') {
+						continue; // This is just an alias.
+					}
+					if (!preg_match('/^array|\[\]|function/', $var['default']) && !preg_match('/^Example: /', trim(implode(' ', $var['comment'])))) {
+						$syntax_error = true;
+						try {
+							$temp = $var['default'];
+							$syntax_error = false;
+						} catch (Exception $e) {
+							$temp = false;
 						}
-						$conf[] = $var;
+						if ($syntax_error && $temp === false) {
+							error('Error parsing config.php (line ' . $line_no . ')!', null, $var);
+						} elseif (!isset($temp)) {
+							$var['type'] = 'unknown';
+						} else {
+							$var['type'] = gettype($temp);
+						}
+						if ($var['type'] === 'integer' && is_array($var['name']) && $var['name'][0] === 'mod' &&
+							(in_array($var['default'], ['JANITOR', 'MOD', 'ADMIN', 'DISABLED']) || mb_strpos($var['default'], "\$config['mod']") === 0)) {
+							// Permissions variable
+							$var['permissions'] = true;
+						}
+						unset($var['default_temp']);
+						if (!is_array($var['name']) || (end($var['name']) !== '' && !in_array(reset($var['name']), ['stylesheets']))) {
+							$already_exists = false;
+							foreach ($conf as $_var) {
+								if ($var['name'] == $_var['name']) {
+									$already_exists = true;
+								}
+							}
+							if (!$already_exists && permission_to_edit_config_var($var['name'])) {
+								foreach ($var['comment'] as &$comment) {
+									$comment = preg_replace_callback(
+										'/((?:https?:\/\/|ftp:\/\/|irc:\/\/)[^\s<>()"]+?(?:\([^
+										'markup_url', $comment);
+								}
+								$conf[] = $var;
+							}
+						}
 					}
+					$var = [
+						'name' => false,
+						'comment' => [],
+						'default' => false,
+						'default_temp' => false,
+						'commented' => false,
+						'permissions' => false,
+					];
 				}
+				if (trim($line) === '') {
+					$var['comment'] = [];
+				}
+				$line_no++;
 			}
-			
-			$var = array(
-				'name' => false,
-				'comment' => array(),
-				'default' => false,
-				'default_temp' => false,
-				'commented' => false,
-				'permissions' => false,
-			);
-		}
-		
-		if (trim($line) === '') {
-			$var['comment'] = array();
-		}
-		
-		$line_no++;
-	}
-	
-	return $conf;
-}
+			return $conf;
 

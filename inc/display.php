@@ -1,4 +1,6 @@
+
 <?php
+declare(strict_types=1);
 
 /*
  *  Copyright (c) 2010-2013 Tinyboard Development Group
@@ -13,50 +15,43 @@ if (realpath($_SERVER['SCRIPT_FILENAME']) == str_replace('\\', '/', __FILE__)) {
 	joaoptm78@gmail.com
 	http://www.php.net/manual/en/function.filesize.php#100097
 */
-function format_bytes($size) {
-	$units = array(' B', ' KB', ' MB', ' GB', ' TB');
+function format_bytes(float|int $size): string {
+	$units = [' B', ' KB', ' MB', ' GB', ' TB'];
 	for ($i = 0; $size >= 1024 && $i < 4; $i++) $size /= 1024;
-	return round($size, 2).$units[$i];
+	return round($size, 2) . $units[$i];
 }
 
-function doBoardListPart($list, $root, &$boards) {
+function doBoardListPart(array $list, string $root, array &$boards): string {
 	global $config;
-
 	$body = '';
 	foreach ($list as $key => $board) {
-		if (is_array($board))
+		if (is_array($board)) {
 			$body .= ' <span class="sub" data-description="' . $key . '">[' . doBoardListPart($board, $root, $boards) . ']</span> ';
-		else {
-			if (gettype($key) == 'string') {
+		} else {
+			if (is_string($key)) {
 				$body .= ' <a href="' . $board . '">' . $key . '</a> /';
 			} else {
 				$title = '';
-				if (isset ($boards[$board])) {
-					$title = ' title="'.$boards[$board].'"';
+				if (isset($boards[$board])) {
+					$title = ' title="' . $boards[$board] . '"';
 				}
-
-				$body .= ' <a href="' . $root . $board . '/' . $config['file_index'] . '"'.$title.'>' . $board . '</a> /';
+				$body .= ' <a href="' . $root . $board . '/' . $config['file_index'] . '"' . $title . '>' . $board . '</a> /';
 			}
 		}
 	}
 	$body = preg_replace('/\/$/', '', $body);
-
 	return $body;
 }
 
-function createBoardlist($mod=false) {
+function createBoardlist(bool $mod = false): array|string {
 	global $config;
-
-	if (!isset($config['boards'])) return array('top'=>'','bottom'=>'');
-
+	if (!isset($config['boards'])) return ['top' => '', 'bottom' => ''];
 	$xboards = listBoards();
-	$boards = array();
+	$boards = [];
 	foreach ($xboards as $val) {
 		$boards[$val['uri']] = $val['title'];
 	}
-
-	$body = doBoardListPart($config['boards'], $mod?'?/':$config['root'], $boards);
-
+	$body = doBoardListPart($config['boards'], $mod ? '?/' : $config['root'], $boards);
 	if ($config['boardlist_wrap_bracket'] && !preg_match('/\] $/', $body))
 		$body = '[' . $body . ']';
 

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /* This file is dedicated to the public domain; you may do as you wish with it. */
 
 // Information needed to parse an element type
@@ -15,18 +16,18 @@ class EBMLElementTypeList {
 
     public function __construct($filename) {
         $lines = file($filename);
-        foreach($lines as $line) {
+        foreach ($lines as $line) {
             $fields = explode(' ', trim($line));
             $t = new EBMLElementType;
             $id = hexdec($fields[0]);
             $t->datatype = $fields[1];
             $t->name = $fields[2];
-            $t->validParents = array();
+            $t->validParents = [];
             for ($i = 0; $i + 3 < count($fields); $i++) {
-                if ($fields[$i+3] == '*' || $fields[$i+3] == 'root') {
-                    $t->validParents[$i] = $fields[$i+3];
+                if ($fields[$i + 3] === '*' || $fields[$i + 3] === 'root') {
+                    $t->validParents[$i] = $fields[$i + 3];
                 } else {
-                    $t->validParents[$i] = hexdec($fields[$i+3]);
+                    $t->validParents[$i] = hexdec($fields[$i + 3]);
                 }
             }
             $this->_els[$id] = $t;

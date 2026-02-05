@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /*
  *  Copyright (c) 2010-2013 Tinyboard Development Group
  */
@@ -541,8 +542,9 @@ function mod_new_board(Context $ctx) {
 
 		$query = Element('posts.sql', [ 'board' => $board['uri'] ]);
 
-		if (mysql_version() < 50503)
+		if (mysql_version() < 50503) {
 			$query = preg_replace('/(CHARSET=|CHARACTER SET )utf8mb4/', '$1utf8', $query);
+		}
 
 		query($query) or error(db_error());
 
@@ -2019,7 +2021,7 @@ function mod_user(Context $ctx, $uid) {
 		}
 
 		if ($_POST['password'] != '') {
-			list($version, $password) = crypt_password($_POST['password']);
+			[$version, $password] = crypt_password($_POST['password']);
 
 			$query = prepare('UPDATE ``mods`` SET `password` = :password, `version` = :version WHERE `id` = :id');
 			$query->bindValue(':id', $uid);
@@ -2045,7 +2047,7 @@ function mod_user(Context $ctx, $uid) {
 
 	if (hasPermission($config['mod']['change_password']) && $uid == $mod['id'] && isset($_POST['password'])) {
 		if ($_POST['password'] != '') {
-			list($version, $password) = crypt_password($_POST['password']);
+			[$version, $password] = crypt_password($_POST['password']);
 
 			$query = prepare('UPDATE ``mods`` SET `password` = :password, `version` = :version WHERE `id` = :id');
 			$query->bindValue(':id', $uid);
@@ -2122,7 +2124,7 @@ function mod_user_new(Context $ctx) {
 		if (!isset($config['mod']['groups'][$type]) || $type == DISABLED)
 			error(sprintf($config['error']['invalidfield'], 'type'));
 
-		list($version, $password) = crypt_password($_POST['password']);
+		[$version, $password] = crypt_password($_POST['password']);
 
 		$query = prepare('INSERT INTO ``mods`` VALUES (NULL, :username, :password, :version, :type, :boards)');
 		$query->bindValue(':username', $_POST['username']);

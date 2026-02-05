@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /*
  *  Copyright (c) 2010-2013 Tinyboard Development Group
  */
@@ -77,7 +78,12 @@ class Api {
 		}
 	}
 
-	private function translateFields($fields, $object, &$apiPost) {
+	/**
+	 * @param array $fields
+	 * @param object $object
+	 * @param array $apiPost
+	 */
+	private function translateFields(array $fields, object $object, array &$apiPost): void {
 		foreach ($fields as $local => $translated) {
 			if (!isset($object->$local)) {
 				continue;
@@ -94,7 +100,12 @@ class Api {
 		}
 	}
 
-	private function translateFile($file, $post, &$apiPost) {
+	/**
+	 * @param object $file
+	 * @param object $post
+	 * @param array $apiPost
+	 */
+	private function translateFile(object $file, object $post, array &$apiPost): void {
 		$this->translateFields(self::FILE_FIELDS, $file, $apiPost);
 		$dotPos = strrpos($file->file, '.');
 		$apiPost['ext'] = substr($file->file, $dotPos);
@@ -112,7 +123,12 @@ class Api {
 		}
 	}
 
-	private function translatePost($post, bool $threadsPage = false) {
+	/**
+	 * @param object $post
+	 * @param bool $threadsPage
+	 * @return array
+	 */
+	private function translatePost(object $post, bool $threadsPage = false): array {
 		global $config, $board;
 
 		$apiPost = [];
@@ -168,7 +184,12 @@ class Api {
 		return $apiPost;
 	}
 
-	public function translateThread(Thread $thread, bool $threadsPage = false) {
+	/**
+	 * @param Thread $thread
+	 * @param bool $threadsPage
+	 * @return array
+	 */
+	public function translateThread(Thread $thread, bool $threadsPage = false): array {
 		$apiPosts = [];
 		$op = $this->translatePost($thread, $threadsPage);
 		if (!$threadsPage) $op['resto'] = 0;
@@ -181,7 +202,11 @@ class Api {
 		return $apiPosts;
 	}
 
-	public function translatePage(array $threads) {
+	/**
+	 * @param array $threads
+	 * @return array
+	 */
+	public function translatePage(array $threads): array {
 		$apiPage = [];
 		foreach ($threads as $thread) {
 			$apiPage['threads'][] = $this->translateThread($thread);
@@ -189,7 +214,12 @@ class Api {
 		return $apiPage;
 	}
 
-	public function translateCatalogPage(array $threads, bool $threadsPage = false) {
+	/**
+	 * @param array $threads
+	 * @param bool $threadsPage
+	 * @return array
+	 */
+	public function translateCatalogPage(array $threads, bool $threadsPage = false): array {
 		$apiPage = [];
 		foreach ($threads as $thread) {
 			$ts = $this->translateThread($thread, $threadsPage);
@@ -198,7 +228,12 @@ class Api {
 		return $apiPage;
 	}
 
-	public function translateCatalog($catalog, bool $threadsPage = false) {
+	/**
+	 * @param array $catalog
+	 * @param bool $threadsPage
+	 * @return array
+	 */
+	public function translateCatalog(array $catalog, bool $threadsPage = false): array {
 		$apiCatalog = [];
 		foreach ($catalog as $page => $threads) {
 			$apiPage = $this->translateCatalogPage($threads, $threadsPage);
@@ -209,19 +244,23 @@ class Api {
 		return $apiCatalog;
 	}
 	
-	public function translateBoard($board) {
-		$apiBoard = [];
-		
-		foreach ($boards as $board) {
-			$apiBoard['uri'] = $board['uri'];
-			$apiBoard['title'] = $board['title'];
-			$apiBoard['subtitle'] = $board['subtitle'];
-		}
-
-		return $apiBoard;
+	/**
+	 * @param array $board
+	 * @return array
+	 */
+	public function translateBoard(array $board): array {
+		return [
+			'uri' => $board['uri'],
+			'title' => $board['title'],
+			'subtitle' => $board['subtitle']
+		];
 	}
 
-	public function translateBoards($boards) {
+	/**
+	 * @param array $boards
+	 * @return array
+	 */
+	public function translateBoards(array $boards): array {
 		$apiBoards = [];
 		foreach ($boards as $board) {
 			$apiBoards[] = $this->translateBoard($board);

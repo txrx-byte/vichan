@@ -1,66 +1,150 @@
 -- phpMyAdmin SQL Dump
 -- version 4.0.4.1
 -- http://www.phpmyadmin.net
---
--- Host: localhost
--- Generation Time: Jul 30, 2013 at 09:45 PM
--- Server version: 5.6.10
--- PHP Version: 5.3.15
 
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-SET time_zone = "+00:00";
+-- vichan modern install.sql
+-- Modern, efficient, and secure schema for a high-performance imageboard
+-- All tables use InnoDB, utf8mb4, and proper indexing/constraints
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
+-- Boards
+CREATE TABLE boards (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  uri VARCHAR(32) NOT NULL UNIQUE,
+  title VARCHAR(64) NOT NULL,
+  subtitle VARCHAR(128) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
+-- Threads
+CREATE TABLE threads (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  board_id INT UNSIGNED NOT NULL,
+  subject VARCHAR(128) DEFAULT NULL,
+  sticky BOOLEAN NOT NULL DEFAULT 0,
+  locked BOOLEAN NOT NULL DEFAULT 0,
+  post_count INT UNSIGNED NOT NULL DEFAULT 0,
+  image_count INT UNSIGNED NOT NULL DEFAULT 0,
+  soft_delete BOOLEAN NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
+  INDEX idx_board_bump (board_id, sticky, updated_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Table structure for table `antispam`
---
+-- Posts
+CREATE TABLE posts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  thread_id BIGINT UNSIGNED NOT NULL,
+  board_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED DEFAULT NULL,
+  name VARCHAR(64) DEFAULT NULL,
+  trip VARCHAR(32) DEFAULT NULL,
+  email VARCHAR(64) DEFAULT NULL,
+  subject VARCHAR(128) DEFAULT NULL,
+  body TEXT NOT NULL,
+  password CHAR(64) DEFAULT NULL,
+  ip_hash CHAR(64) NOT NULL,
+  ip_mask VARCHAR(32) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  file_id BIGINT UNSIGNED DEFAULT NULL,
+  soft_delete BOOLEAN NOT NULL DEFAULT 0,
+  FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+  FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE SET NULL,
+  INDEX (thread_id),
+  INDEX (board_id),
+  INDEX (ip_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `antispam` (
-  `board` varchar(58) CHARACTER SET utf8 NOT NULL,
-  `thread` int(11) DEFAULT NULL,
-  `hash` char(40) COLLATE ascii_bin NOT NULL,
-  `created` int(11) NOT NULL,
-  `expires` int(11) DEFAULT NULL,
-  `passed` smallint(6) NOT NULL,
-  PRIMARY KEY (`hash`),
-  KEY `board` (`board`,`thread`),
-  KEY `expires` (`expires`)
-) ENGINE=InnoDB DEFAULT CHARSET=ascii COLLATE=ascii_bin;
+-- Files
+CREATE TABLE files (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  filename VARCHAR(255) NOT NULL,
+  original_name VARCHAR(255) DEFAULT NULL,
+  filehash CHAR(64) NOT NULL,
+  size INT UNSIGNED NOT NULL,
+  width INT UNSIGNED DEFAULT NULL,
+  height INT UNSIGNED DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (filehash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
+-- Users (for mods/admins)
+CREATE TABLE users (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(32) NOT NULL UNIQUE,
+  password CHAR(255) NOT NULL,
+  type TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  boards VARCHAR(255) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Table structure for table `bans`
---
+-- Bans
+CREATE TABLE bans (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ip_hash CHAR(64) NOT NULL,
+  reason VARCHAR(255) DEFAULT NULL,
+  expires_at TIMESTAMP NULL DEFAULT NULL,
+  board_id INT UNSIGNED DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE SET NULL,
+  INDEX (ip_hash),
+  INDEX (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `bans` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `ipstart` varbinary(16) NOT NULL,
-  `ipend` varbinary(16) DEFAULT NULL,
-  `created` int(10) unsigned NOT NULL,
-  `expires` int(10) unsigned DEFAULT NULL,
-  `board` varchar(58) DEFAULT NULL,
-  `creator` int(10) NOT NULL,
-  `reason` text,
-  `seen` tinyint(1) NOT NULL,
-  `post` blob,
-  PRIMARY KEY (`id`),
-  KEY `expires` (`expires`),
-  KEY `ipstart` (`ipstart`,`ipend`)
-) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1 ;
+-- Flood table (for anti-spam)
+CREATE TABLE flood (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ip_hash CHAR(64) NOT NULL,
+  posthash CHAR(64) NOT NULL,
+  filehash CHAR(64) DEFAULT NULL,
+  time INT UNSIGNED NOT NULL,
+  board_id INT UNSIGNED NOT NULL,
+  FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
+  INDEX (ip_hash),
+  INDEX (posthash),
+  INDEX (filehash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
+-- Modlogs
+CREATE TABLE modlogs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  ip_hash CHAR(64) NOT NULL,
+  board_id INT UNSIGNED DEFAULT NULL,
+  time INT UNSIGNED NOT NULL,
+  action TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE SET NULL,
+  INDEX (user_id),
+  INDEX (ip_hash),
+  INDEX (board_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Table structure for table `boards`
---
+-- Reports
+CREATE TABLE reports (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  post_id BIGINT UNSIGNED NOT NULL,
+  reason VARCHAR(255) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+  INDEX (post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- IP Notes (for moderation)
+CREATE TABLE ip_notes (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ip_hash CHAR(64) NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  time INT UNSIGNED NOT NULL,
+  body TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX (ip_hash),
+  INDEX (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Add more tables as needed for catalog, custom features, etc.
 CREATE TABLE IF NOT EXISTS `boards` (
   `uri` varchar(58) CHARACTER SET utf8 NOT NULL,
   `title` tinytext NOT NULL,

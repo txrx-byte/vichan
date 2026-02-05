@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /*
  *  Copyright (c) 2010-2013 Tinyboard Development Group
@@ -7,20 +8,23 @@
 defined('TINYBOARD') or exit;
 
 class Filter {
-	public $flood_check;
-	private $condition;
-	private $post;
+	/** @var array|null */
+	public $flood_check = null;
+	/** @var array */
+	private array $condition = [];
+	/** @var array */
+	private array $post = [];
 
 
-	public function __construct(array $arr) {
-		foreach ($arr as $key => $value) {
-			$this->$key = $value;
+		public function __construct(array $arr) {
+			foreach ($arr as $key => $value) {
+				$this->$key = $value;
+			}
 		}
-	}
 
-	public function match($condition, $match) {
-		$condition = strtolower($condition);
-		$post = &$this->post;
+		public function match(string $condition, $match): bool {
+			$condition = strtolower($condition);
+			$post = &$this->post;
 
 		switch($condition) {
 			case 'custom':
@@ -149,7 +153,7 @@ class Filter {
 		}
 	}
 
-	public function action() {
+		public function action(): void {
 		global $board;
 
 		$this->add_note = isset($this->add_note) ? $this->add_note : false;
@@ -192,7 +196,7 @@ class Filter {
 		}
 	}
 
-	public function check(array $post) {
+		public function check(array $post): bool {
 		$this->post = $post;
 		foreach ($this->condition as $condition => $value) {
 			if ($condition[0] == '!') {
@@ -210,7 +214,7 @@ class Filter {
 	}
 }
 
-function purge_flood_table() {
+function purge_flood_table(): void {
 	global $config;
 
 	// Determine how long we need to keep a cache of posts for flood prevention. Unfortunately, it is not
@@ -233,7 +237,7 @@ function purge_flood_table() {
 	query("DELETE FROM ``flood`` WHERE `time` < $time") or error(db_error());
 }
 
-function do_filters(array $post) {
+function do_filters(array $post): void {
 	global $config;
 
 	if (!isset($config['filters']) || empty($config['filters'])) {

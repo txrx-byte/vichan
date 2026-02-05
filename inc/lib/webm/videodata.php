@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /* This file is dedicated to the public domain; you may do as you wish with it. */
 require dirname(__FILE__) . '/matroska.php';
 
@@ -69,15 +70,16 @@ function muxWebMFrame($videoTrack, $frame) {
 }
 
 // Locate first WebM keyframe of track $trackNumber after timecode $skip
-function firstWebMFrame($segment, $trackNumber, $skip=0) {
-    foreach($segment as $x1) {
-        if ($x1->name() == 'Cluster') {
+function firstWebMFrame($segment, $trackNumber, $skip = 0) {
+    $frame1 = null;
+    foreach ($segment as $x1) {
+        if ($x1->name() === 'Cluster') {
             $cluserTimecode = $x1->Get('Timecode');
-            foreach($x1 as $blockGroup) {
-                $blockRaw = NULL;
-                if ($blockGroup->name() == 'SimpleBlock') {
+            foreach ($x1 as $blockGroup) {
+                $blockRaw = null;
+                if ($blockGroup->name() === 'SimpleBlock') {
                     $blockRaw = $blockGroup->value();
-                } elseif ($blockGroup->name() == 'BlockGroup') {
+                } elseif ($blockGroup->name() === 'BlockGroup') {
                     $blockRaw = $blockGroup->get('Block');
                 }
                 if (isset($blockRaw)) {
@@ -93,7 +95,7 @@ function firstWebMFrame($segment, $trackNumber, $skip=0) {
             }
         }
     }
-    return isset($frame1) ? $frame1 : NULL;
+    return $frame1;
 }
 
 function videoData($filename) {
@@ -127,8 +129,9 @@ function videoData($filename) {
         // Locate video track
         $tracks = $segment->get('Tracks');
         if (!isset($tracks)) throw new Exception('missing Tracks element');
-        foreach($tracks as $trackEntry) {
-            if ($trackEntry->name() == 'TrackEntry' && $trackEntry->get('TrackType') == 1) {
+        $videoTrack = null;
+        foreach ($tracks as $trackEntry) {
+            if ($trackEntry->name() === 'TrackEntry' && $trackEntry->get('TrackType') == 1) {
                 $videoTrack = $trackEntry;
                 break;
             }

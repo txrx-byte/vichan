@@ -1,4 +1,6 @@
+
 <?php
+declare(strict_types=1);
 
 /*
  *  Copyright (c) 2010-2013 Tinyboard Development Group
@@ -7,16 +9,16 @@
 use Vichan\Context;
 use Vichan\Functions\Net;
 
+
 defined('TINYBOARD') or exit;
 
 // create a hash/salt pair for validate logins
-function mkhash(string $username, $password = null, $salt = false) {
+function mkhash(string $username, ?string $password = null, $salt = false): array|string {
 	global $config;
 
 	if (!$salt) {
 		// create some sort of salt for the hash
-		$salt = substr(base64_encode(sha1(rand() . time(), true) . $config['cookies']['salt']), 0, 15);
-
+		$salt = substr(base64_encode(sha1((string)random_int(PHP_INT_MIN, PHP_INT_MAX) . microtime(true), true) . $config['cookies']['salt']), 0, 15);
 		$generated_salt = true;
 	}
 
@@ -26,41 +28,39 @@ function mkhash(string $username, $password = null, $salt = false) {
 			md5(
 				$username . $config['cookies']['salt'] . sha1(
 					$username . $password . $salt . (
-						$config['mod']['lock_ip'] ? $_SERVER['REMOTE_ADDR'] : ''
+						$config['mod']['lock_ip'] ? ($_SERVER['REMOTE_ADDR'] ?? '') : ''
 					), true
-				) . sha1($config['password_crypt_version']) // Log out users being logged in with older password encryption schema
+				) . sha1((string)$config['password_crypt_version']) // Log out users being logged in with older password encryption schema
 				, true
 			)
 		), 0, 20
 	);
 
 	if (isset($generated_salt)) {
-		return [ $hash, $salt ];
-	} else {
-		return $hash;
+		return [$hash, $salt];
 	}
+	return $hash;
 }
 
 function crypt_password(string $password): array {
 	global $config;
 	// `salt` database field is reused as a version value. We don't want it to be 0.
-	$version = $config['password_crypt_version'] ? $config['password_crypt_version'] : 1;
+	$version = $config['password_crypt_version'] ?: 1;
 	$new_salt = generate_salt();
-	$password = crypt($password, $config['password_crypt'] . $new_salt . "$");
-	return [ $version, $password ];
+	$passwordHash = crypt($password, $config['password_crypt'] . $new_salt . "$”);
+	return [$version, $passwordHash];
 }
 
 function test_password(string $password, string $salt, string $test): array {
 	// Version = 0 denotes an old password hashing schema. In the same column, the
 	// password hash was kept previously
 	$version = strlen($salt) <= 8 ? (int)$salt : 0;
-
-	if ($version == 0) {
+	if ($version === 0) {
 		$comp = hash('sha256', $salt . sha1($test));
 	} else {
 		$comp = crypt($test, $password);
 	}
-	return [ $version, hash_equals($password, $comp) ];
+	return [$version, hash_equals($password, $comp)];
 }
 
 function generate_salt(): string {
@@ -79,7 +79,7 @@ function calc_cookie_name(bool $is_https, bool $is_path_jailed, string $base_nam
 	}
 }
 
-function login(string $username, string $password) {
+function login(string $username, string $password): array|false {
 	global $mod, $config;
 
 	$query = prepare("SELECT `id`, `type`, `boards`, `password`, `version` FROM ``mods`` WHERE BINARY `username` = :username");
@@ -87,29 +87,26 @@ function login(string $username, string $password) {
 	$query->execute() or error(db_error($query));
 
 	if ($user = $query->fetch(PDO::FETCH_ASSOC)) {
-		list($version, $ok) = test_password($user['password'], $user['version'], $password);
-
+		[$version, $ok] = test_password($user['password'], $user['version'], $password);
 		if ($ok) {
 			if ($config['password_crypt_version'] > $version) {
 				// It's time to upgrade the password hashing method!
-				list ($user['version'], $user['password']) = crypt_password($password);
+				[$user['version'], $user['password']] = crypt_password($password);
 				$query = prepare("UPDATE ``mods`` SET `password` = :password, `version` = :version WHERE `id` = :id");
 				$query->bindValue(':password', $user['password']);
 				$query->bindValue(':version', $user['version']);
 				$query->bindValue(':id', $user['id']);
 				$query->execute() or error(db_error($query));
 			}
-
 			return $mod = [
-				'id' => $user['id'],
-				'type' => $user['type'],
+				'id' => (int)$user['id'],
+				'type' => (int)$user['type'],
 				'username' => $username,
 				'hash' => mkhash($username, $user['password']),
 				'boards' => explode(',', $user['boards'])
 			];
 		}
 	}
-
 	return false;
 }
 
@@ -196,14 +193,13 @@ function modLog(string $action, ?string $_board = null): void {
 	}
 }
 
-function create_pm_header() {
+function create_pm_header(): array|false {
 	global $mod, $config;
 
-	if ($config['cache']['enabled'] && ($header = cache::get('pm_unread_' . $mod['id'])) != false) {
+	if ($config['cache']['enabled'] && ($header = cache::get('pm_unread_' . $mod['id'])) !== false) {
 		if ($header === true) {
 			return false;
 		}
-
 		return $header;
 	}
 
@@ -212,7 +208,7 @@ function create_pm_header() {
 	$query->execute() or error(db_error($query));
 
 	if ($pm = $query->fetch(PDO::FETCH_ASSOC)) {
-		$header = [ 'id' => $pm['id'], 'waiting' => $query->rowCount() - 1 ];
+		$header = ['id' => $pm['id'], 'waiting' => $query->rowCount() - 1];
 	} else {
 		$header = true;
 	}
@@ -244,7 +240,7 @@ function check_login(Context $ctx, bool $prompt = false): void {
 	if (isset($_COOKIE[$expected_cookie_name])) {
 		// Should be username:hash:salt
 		$cookie = explode(':', $_COOKIE[$expected_cookie_name]);
-		if (count($cookie) != 3) {
+		if (count($cookie) !== 3) {
 			// Malformed cookies
 			destroyCookies();
 			if ($prompt) {
@@ -268,11 +264,11 @@ function check_login(Context $ctx, bool $prompt = false): void {
 			exit;
 		}
 
-		$mod = array(
+		$mod = [
 			'id' => (int)$user['id'],
 			'type' => (int)$user['type'],
 			'username' => $cookie[0],
 			'boards' => explode(',', $user['boards'])
-		);
+		];
 	}
 }

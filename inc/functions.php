@@ -1,4 +1,6 @@
+
 <?php
+declare(strict_types=1);
 
 /*
  *  Copyright (c) 2010-2014 Tinyboard Development Group
@@ -504,7 +506,7 @@ function purge($uri) {
 	$uri = rawurlencode($uri);
 
 	$noescape = "/!~*()+:";
-	$noescape = preg_split('//', $noescape);
+	$noescape = preg_split('//', $noescape, -1, PREG_SPLIT_NO_EMPTY);
 	$noescape_url = array_map("rawurlencode", $noescape);
 	$uri = str_replace($noescape_url, $noescape, $uri);
 
@@ -1722,7 +1724,7 @@ function buildJavascript() {
 	));
 
 	// Check if we have translation for the javascripts; if yes, we add it to additional javascripts
-	list($pure_locale) = explode(".", $config['locale']);
+	[$pure_locale] = explode(".", $config['locale'], 2);
 	if (file_exists ($jsloc = "inc/locale/$pure_locale/LC_MESSAGES/javascript.js")) {
 		$script = file_get_contents($jsloc) . "\n\n" . $script;
 	}
@@ -2825,19 +2827,18 @@ function uncloak_ip($ip) {
 	return '#ERROR';
 }
 
-function cloak_mask($mask) {
-	list($net, $block) = array_pad(explode('/', $mask, 2), 2, null);
-	$mask = cloak_ip($net);
+function cloak_mask(string $mask): string {
+	[$net, $block] = array_pad(explode('/', $mask, 2), 2, null);
+	$masked = cloak_ip($net);
 	if ($block) {
-		$mask .= '/'.$block;
+		$masked .= '/' . $block;
 	}
-
-	return $mask;
+	return $masked;
 }
 
-function uncloak_mask($mask) {
-	list($addr, $block) = array_pad(explode('/', $mask, 2), 2, null);
-	$mask = uncloak_ip($addr);
+function uncloak_mask(string $mask): string {
+	[$addr, $block] = array_pad(explode('/', $mask, 2), 2, null);
+	$unmasked = uncloak_ip($addr);
 	if ($mask === '#ERROR') {
 		$mask = $addr;
 	}
